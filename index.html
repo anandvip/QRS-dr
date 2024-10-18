@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Details Extraction - City-wise & Interest-wise Report</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            background-color: #007bff;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        #doctor-list {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #007bff;
+            text-align: center;
+        }
+        .doctor-info {
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #filters {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        select {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+        #city-heading {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #333;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>QRS India Pvt Ltd - Doctor Details City-wise & Interest-wise Report</h1>
+    </header>
+
+    <div id="filters">
+        <label for="cityName">Select City: </label>
+        <select id="cityName">
+            <option value="">All Cities</option>
+            <option value="Kurukshetra">Kurukshetra</option>
+            <option value="Karnal">Karnal</option>
+            <option value="Ladwa">Ladwa</option>
+            <option value="Kaithal">Kaithal</option>
+            <option value="Pehowa">Pehowa</option>
+            <option value="Yamunanagar">Yamunanagar</option>
+            <option value="Panipat">Panipat</option>
+            <option value="Sonipat">Sonipat</option>
+        </select>
+        <label for="interestLevel">Select Interest Level: </label>
+        <select id="interestLevel">
+            <option value="">All Interest Levels</option>
+            <option value="Very Interested">Very Interested</option>
+            <option value="Somewhat Interested">Somewhat Interested</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Not Interested">Not Interested</option>
+        </select>
+    </div>
+
+    <div id="doctor-list">
+        <h2>Doctor Details</h2>
+        <h3 id="city-heading"></h3>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpcUWB7q_Dr6zONnrrHZ4Oek6CKqynwxM",
+            authDomain: "field-agent-85e4d.firebaseapp.com",
+            projectId: "field-agent-85e4d",
+            storageBucket: "field-agent-85e4d.appspot.com",
+            messagingSenderId: "943481749888",
+            appId: "1:943481749888:web:2d6d1d2d2a449cc6450165",
+            measurementId: "G-0NEVBPBB9P"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Function to extract doctor's phone number, name, and interest, and display by city and interest level
+        async function extractDoctorDetails(selectedCity, selectedInterest) {
+            try {
+                // Clear the existing list
+                const doctorList = document.getElementById("doctor-list");
+                if (!doctorList) {
+                    throw new Error("Doctor list element not found");
+                }
+                doctorList.innerHTML = "<h2>Doctor Details</h2>";
+
+                // Update the city heading
+                const cityHeading = document.getElementById("city-heading");
+                if (cityHeading) {
+                    if (selectedCity) {
+                        cityHeading.innerText = `City: ${selectedCity}`;
+                    } else {
+                        cityHeading.innerText = "All Cities";
+                    }
+                }
+
+                // Query the 'reports' collection with optional city and interest level filters
+                let q;
+                if (selectedCity && selectedCity !== "" && selectedInterest && selectedInterest !== "") {
+                    q = query(collection(db, "reports"), where("cityName", "==", selectedCity), where("doctorInterest", "==", selectedInterest));
+                } else if (selectedCity && selectedCity !== "") {
+                    q = query(collection(db, "reports"), where("cityName", "==", selectedCity));
+                } else if (selectedInterest && selectedInterest !== "") {
+                    q = query(collection(db, "reports"), where("doctorInterest", "==", selectedInterest));
+                } else {
+                    q = query(collection(db, "reports"));
+                }
+
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    const noDataMessage = document.createElement("p");
+                    noDataMessage.innerText = "No doctor details found for the selected filters.";
+                    doctorList.appendChild(noDataMessage);
+                } else {
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const doctorName = data.doctorName;
+                        const doctorPhone = data.doctorPhone;
+                        const city = data.cityName || "Not specified";
+                        const interest = data.doctorInterest;
+
+                        // Display the information in the desired format
+                        const doctorInfo = document.createElement("div");
+                        doctorInfo.className = "doctor-info";
+                        doctorInfo.innerHTML = `
+                            <strong>City:</strong> ${city}<br>
+                            <strong>Doctor Name:</strong> ${doctorName}<br>
+                            <strong>Phone:</strong> ${doctorPhone}<br>
+                            <strong>Interest Level:</strong> ${interest}
+                        `;
+                        doctorList.appendChild(doctorInfo);
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching doctor details: ", error);
+                const errorMessage = document.createElement("p");
+                errorMessage.innerText = "Error fetching doctor details. Please try again later.";
+                if (doctorList) {
+                    doctorList.appendChild(errorMessage);
+                }
+            }
+        }
+
+        // Set up event listener for city and interest level selection
+        document.getElementById("cityName").addEventListener("change", (e) => {
+            const selectedCity = e.target.value;
+            const selectedInterest = document.getElementById("interestLevel").value;
+            extractDoctorDetails(selectedCity, selectedInterest);
+        });
+
+        document.getElementById("interestLevel").addEventListener("change", (e) => {
+            const selectedInterest = e.target.value;
+            const selectedCity = document.getElementById("cityName").value;
+            extractDoctorDetails(selectedCity, selectedInterest);
+        });
+
+        // Initial call to load all doctor details
+        extractDoctorDetails("", "");
+    </script>
+</body>
+</html>
